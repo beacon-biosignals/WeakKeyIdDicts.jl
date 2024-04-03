@@ -27,7 +27,7 @@ struct WeakRefForWeakDict
     WeakRefForWeakDict(@nospecialize(v)) = new(WeakRef(v))
 end
 
-Base.:(==)(wr1::WeakRefForWeakDict, wr2::WeakRefForWeakDict) = wr1.w.value===wr2.w.value
+Base.:(==)(wr1::WeakRefForWeakDict, wr2::WeakRefForWeakDict) = wr1.w.value === wr2.w.value
 Base.hash(wr::WeakRefForWeakDict, h::UInt) = Base.hash_uint(3h - objectid(wr.w.value))
 
 """
@@ -50,21 +50,23 @@ mutable struct WeakKeyIdDict{K,V} <: AbstractDict{K,V}
     dirty::Bool
 
     # Constructors mirror Dict's
-    function WeakKeyIdDict{K,V}() where V where K
+    function WeakKeyIdDict{K,V}() where {V} where {K}
         t = new(Dict{WeakRefForWeakDict,V}(), ReentrantLock(), identity, 0)
         t.finalizer = k -> t.dirty = true
         return t
     end
 end
-function WeakKeyIdDict{K,V}(kv) where V where K
+function WeakKeyIdDict{K,V}(kv) where {V} where {K}
     h = WeakKeyIdDict{K,V}()
-    for (k,v) in kv
+    for (k, v) in kv
         h[k] = v
     end
     return h
 end
-WeakKeyIdDict{K,V}(p::Pair) where V where K = setindex!(WeakKeyIdDict{K,V}(), p.second, p.first)
-function WeakKeyIdDict{K,V}(ps::Pair...) where V where K
+function WeakKeyIdDict{K,V}(p::Pair) where {V} where {K}
+    return setindex!(WeakKeyIdDict{K,V}(), p.second, p.first)
+end
+function WeakKeyIdDict{K,V}(ps::Pair...) where {V} where {K}
     h = WeakKeyIdDict{K,V}()
     sizehint!(h, length(ps))
     for p in ps
@@ -77,16 +79,16 @@ WeakKeyIdDict() = WeakKeyIdDict{Any,Any}()
 WeakKeyIdDict(kv::Tuple{}) = WeakKeyIdDict()
 Base.copy(d::WeakKeyIdDict) = WeakKeyIdDict(d)
 
-WeakKeyIdDict(ps::Pair{K,V}...)           where {K,V} = WeakKeyIdDict{K,V}(ps)
-WeakKeyIdDict(ps::Pair{K}...)             where {K}   = WeakKeyIdDict{K,Any}(ps)
-WeakKeyIdDict(ps::(Pair{K,V} where K)...) where {V}   = WeakKeyIdDict{Any,V}(ps)
-WeakKeyIdDict(ps::Pair...)                            = WeakKeyIdDict{Any,Any}(ps)
+WeakKeyIdDict(ps::Pair{K,V}...) where {K,V} = WeakKeyIdDict{K,V}(ps)
+WeakKeyIdDict(ps::Pair{K}...) where {K} = WeakKeyIdDict{K,Any}(ps)
+WeakKeyIdDict(ps::(Pair{K,V} where {K})...) where {V} = WeakKeyIdDict{Any,V}(ps)
+WeakKeyIdDict(ps::Pair...) = WeakKeyIdDict{Any,Any}(ps)
 
 function WeakKeyIdDict(kv)
     try
-        Base.dict_with_eltype((K, V) -> WeakKeyIdDict{K, V}, kv, eltype(kv))
+        Base.dict_with_eltype((K, V) -> WeakKeyIdDict{K,V}, kv, eltype(kv))
     catch
-        if !Base.isiterable(typeof(kv)) || !all(x->isa(x,Union{Tuple,Pair}),kv)
+        if !Base.isiterable(typeof(kv)) || !all(x -> isa(x, Union{Tuple,Pair}), kv)
             throw(ArgumentError("WeakKeyIdDict(kv): kv needs to be an iterator of tuples or pairs"))
         else
             rethrow()
@@ -109,7 +111,7 @@ function _cleanup_locked(h::WeakKeyIdDict)
 end
 
 Base.sizehint!(d::WeakKeyIdDict, newsz) = sizehint!(d.ht, newsz)
-Base.empty(d::WeakKeyIdDict, ::Type{K}, ::Type{V}) where {K, V} = WeakKeyIdDict{K, V}()
+Base.empty(d::WeakKeyIdDict, ::Type{K}, ::Type{V}) where {K,V} = WeakKeyIdDict{K,V}()
 
 Base.IteratorSize(::Type{<:WeakKeyIdDict}) = Base.SizeUnknown()
 
@@ -119,7 +121,7 @@ Base.unlock(wkh::WeakKeyIdDict) = unlock(wkh.lock)
 Base.lock(f, wkh::WeakKeyIdDict) = lock(f, wkh.lock)
 Base.trylock(f, wkh::WeakKeyIdDict) = trylock(f, wkh.lock)
 
-function Base.setindex!(wkh::WeakKeyIdDict{K}, v, key) where K
+function Base.setindex!(wkh::WeakKeyIdDict{K}, v, key) where {K}
     !isa(key, K) && throw(ArgumentError("$key is not a valid key for type $K"))
     # 'nothing' is not valid both because 'finalizer' will reject it,
     # and because we therefore use it as a sentinel value
@@ -133,7 +135,7 @@ function Base.setindex!(wkh::WeakKeyIdDict{K}, v, key) where K
         else
             k.w.value = key
         end
-        wkh.ht[k] = v
+        return wkh.ht[k] = v
     end
     return wkh
 end
@@ -160,7 +162,7 @@ function Base.get!(default::Base.Callable, wkh::WeakKeyIdDict{K}, key) where {K}
     return v
 end
 
-function Base.getkey(wkh::WeakKeyIdDict{K}, kk, default) where K
+function Base.getkey(wkh::WeakKeyIdDict{K}, kk, default) where {K}
     k = lock(wkh) do
         local k = getkey(wkh.ht, WeakRefForWeakDict(kk), nothing)
         k === nothing && return nothing
@@ -169,7 +171,7 @@ function Base.getkey(wkh::WeakKeyIdDict{K}, kk, default) where K
     return k === nothing ? default : k::K
 end
 
-Base.map!(f, iter::Base.ValueIterator{<:WeakKeyIdDict})= Base.map!(f, values(iter.dict.ht))
+Base.map!(f, iter::Base.ValueIterator{<:WeakKeyIdDict}) = Base.map!(f, values(iter.dict.ht))
 
 function Base.get(wkh::WeakKeyIdDict{K}, key, default) where {K}
     key === nothing && throw(KeyError(nothing))
@@ -199,36 +201,38 @@ function Base.delete!(wkh::WeakKeyIdDict, key)
     key === nothing && return wkh
     lock(wkh) do
         delete!(wkh.ht, WeakRefForWeakDict(key))
+        return
     end
     return wkh
 end
 function Base.empty!(wkh::WeakKeyIdDict)
     lock(wkh) do
         empty!(wkh.ht)
+        return
     end
     return wkh
 end
 function Base.haskey(wkh::WeakKeyIdDict{K}, key) where {K}
     key === nothing && return false
-    lock(wkh) do
+    return lock(wkh) do
         return haskey(wkh.ht, WeakRefForWeakDict(key))
     end
 end
 function Base.getindex(wkh::WeakKeyIdDict{K}, key) where {K}
     key === nothing && throw(KeyError(nothing))
-    lock(wkh) do
+    return lock(wkh) do
         return getindex(wkh.ht, WeakRefForWeakDict(key))
     end
 end
 Base.isempty(wkh::WeakKeyIdDict) = length(wkh) == 0
 function Base.length(t::WeakKeyIdDict)
-    lock(t) do
+    return lock(t) do
         _cleanup_locked(t)
         return length(t.ht)
     end
 end
 
-function Base.iterate(t::WeakKeyIdDict{K,V}, state...) where {K, V}
+function Base.iterate(t::WeakKeyIdDict{K,V}, state...) where {K,V}
     return lock(t) do
         while true
             y = iterate(t.ht, state...)
