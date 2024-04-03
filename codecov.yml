@@ -1,0 +1,9 @@
+---
+comment: off
+flag_management:
+  default_rules:
+    carryforward: true
+  individual_flags:
+    - name: WeakKeyIdDicts
+      paths:
+        - src/**
