@@ -72,7 +72,7 @@ jobs:
           open(ENV["GITHUB_OUTPUT"], "a") do io
               println(io, "version=$version")
           end
-      - uses: julia-actions/setup-julia@v1
+      - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ steps.version_resolver.outputs.version }}
           arch: ${{ matrix.arch }}
