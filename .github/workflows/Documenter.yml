@@ -1,0 +1,68 @@
+---
+name: Documenter
+on:
+  workflow_dispatch:
+  push:
+    tags: ["*"]
+    branches:
+      - main
+    paths:
+      - "docs/**"
+      - "src/**"
+      - "Project.toml"
+      - ".github/workflows/Documenter.yml"
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "docs/**"
+      - "src/**"
+      - "Project.toml"
+      - ".github/workflows/Documenter.yml"
+      - ".github/workflows/DocPreviewCleanup.yml"
+jobs:
+  docs:
+    name: Build
+    # Run on non-draft PRs
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    # These permissions are needed to:
+    # - Deploying documentation: https://github.com/JuliaDocs/Documenter.jl/pull/2478
+    # - Delete old caches: https://github.com/julia-actions/cache#usage
+    permissions:
+      actions: write
+      contents: write
+      pull-requests: read
+      statuses: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v1
+        with:
+          version: "1"
+          show-versioninfo: true
+      - uses: julia-actions/cache@v1
+      - uses: julia-actions/add-julia-registry@v1
+        with:
+          key: ${{ secrets.BEACONBUDDY_SSH_KEY }}
+          registry: beacon-biosignals/BeaconRegistry
+      - name: Install dependencies
+        shell: julia --project=docs --color=yes {0}
+        run: |
+          using Pkg
+          Pkg.develop(PackageSpec(path=pwd()))
+          Pkg.instantiate()
+      - name: Build docs
+        uses: julia-actions/julia-docdeploy@v1
+        with:
+          install-package: false  # Avoid instantiating twice
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Preview URL
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          repo_owner="${repo%/*}"  # e.g. JuliaLang
+          repo_name="${repo#*/}"  # e.g. Example.jl
+          echo ":books: Documentation preview available at:" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "<https://${repo_owner}.github.io/${repo_name}/previews/PR${PR}>" | tee -a "$GITHUB_STEP_SUMMARY"
+        env:
+          repo: ${{ github.repository }}  # e.g. JuliaLang/Example.jl
+          PR: ${{ github.event.number }}

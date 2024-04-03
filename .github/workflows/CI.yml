@@ -1,0 +1,101 @@
+---
+name: CI
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    tags: ["*"]
+    paths:
+      - "src/**"
+      - "test/**"
+      - "Project.toml"
+      - ".github/workflows/CI.yml"
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "src/**"
+      - "test/**"
+      - "Project.toml"
+      - ".github/workflows/CI.yml"
+concurrency:
+  # Skip intermediate builds: always.
+  # Cancel intermediate builds: only if it is a pull request build.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
+jobs:
+  test:
+    name: Julia ${{ matrix.version }} - ${{ matrix.runs-on }} - ${{ matrix.arch }} - ${{ matrix.threads}} threads
+    # Run on non-draft PRs
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    # These permissions are needed to:
+    # - Interact with GitHub's OIDC Token endpoint: https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services#adding-permissions-settings
+    # - Delete old caches: https://github.com/julia-actions/cache#usage
+    permissions:
+      id-token: write
+      actions: write
+      contents: read
+    runs-on: ${{ matrix.runs-on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        version:
+          - "MIN"  # Earliest version of Julia that the package is compatible with
+          - "1"    # Latest Julia release
+        runs-on:
+          - ubuntu-latest
+        arch:
+          - x64
+        threads:
+          - 1
+    env:
+      JULIA_NUM_THREADS: ${{ matrix.threads }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # - uses: aws-actions/configure-aws-credentials@v1
+      #   with:
+      #     aws-region: us-east-2
+      #     role-to-assume: arn:aws:iam::185776040155:role/weakkeyiddicts-ci
+      #     role-duration-seconds: 43200
+      - name: Resolve Julia version
+        id: version_resolver
+        shell: julia --color=yes {0}
+        run: |
+          using Pkg.Types
+          version = "${{ matrix.version }}"
+          if version == "MIN"
+              p = read_project("Project.toml")
+              version = VersionNumber(first(sort(p.compat["julia"].val.ranges)).lower.t)
+          end
+          open(ENV["GITHUB_OUTPUT"], "a") do io
+              println(io, "version=$version")
+          end
+      - uses: julia-actions/setup-julia@v1
+        with:
+          version: ${{ steps.version_resolver.outputs.version }}
+          arch: ${{ matrix.arch }}
+      - uses: julia-actions/cache@v1
+      - uses: julia-actions/add-julia-registry@v1
+        with:
+          key: ${{ secrets.BEACONBUDDY_SSH_KEY }}
+          registry: beacon-biosignals/BeaconRegistry
+      - uses: julia-actions/julia-runtest@v1
+        with:
+          annotate: true
+      - uses: julia-actions/julia-processcoverage@v1
+        with:
+          directories: src/
+      - uses: codecov/codecov-action@v4
+        with:
+          files: lcov.info
+          flags: WeakKeyIdDicts
+          token: ${{ secrets.CODECOV_TOKEN }}
+      # - name: Percy Upload
+      #   if: ${{ matrix.version == '1' }}
+      #   uses: percy/exec-action@v0.3.1
+      #   with:
+      #     custom-command: "npx @percy/cli upload ./WeakKeyIdDicts.jl/test/test_images"
+      #   env:
+      #     PERCY_TOKEN: ${{ secrets.PERCY_TOKEN_WEAKKEYIDDICTS }}
