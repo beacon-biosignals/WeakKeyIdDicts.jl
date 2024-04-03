@@ -1,4 +1,4 @@
-# WeakKeyIdDicts.jl
+# WeakKeyIdDicts
 
 [![docs](https://img.shields.io/badge/docs-dev-blue.svg)](https://beacon-biosignals.github.io/WeakKeyIdDicts.jl/dev)
 [![docs](https://img.shields.io/badge/docs-stable-blue.svg)](https://beacon-biosignals.github.io/WeakKeyIdDicts.jl/stable)
