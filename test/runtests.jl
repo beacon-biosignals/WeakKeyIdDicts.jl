@@ -151,8 +151,7 @@ include("set_up_tests.jl")
     end
 
     @testset "WeakKeyIdDict.gc" begin
-
-        # issue #26939
+        # https://github.com/JuliaLang/julia/issues/26939
         d26939 = WeakKeyIdDict()
         d26939[big"1.0" + 1.1] = 1
         GC.gc() # make sure this doesn't segfault
