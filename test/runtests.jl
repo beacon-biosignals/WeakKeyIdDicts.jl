@@ -7,6 +7,68 @@ include("set_up_tests.jl")
         Aqua.test_all(WeakKeyIdDicts; ambiguities=false)
     end
 
+    # NOTE: the first two testsets are copied from
+    # https://github.com/JuliaLang/julia/blob/d7dc9a8cc8f2aebf04d5cecc8625be250169644b/test/dict.jl#L565-L626
+    # an modified for WeakKeyIdDict. WeakKeyIdDict doesn't support integeres as keys so some
+    # of the tests no longer make sense, and/or have to be modified
+
+    # https://github.com/JuliaLang/julia/pull/10657
+    mutable struct T10647{T}
+        x::T
+    end
+    @testset "issue julia#10647" begin
+        a = WeakKeyIdDict()
+        a["1"] = a
+        a[a] = 2
+        a["3"] = T10647(a)
+        @test isequal(a, a)
+        show(IOBuffer(), a)
+        Base.show(Base.IOContext(IOBuffer(), :limit => true), a)
+        Base.show(IOBuffer(), a)
+        Base.show(Base.IOContext(IOBuffer(), :limit => true), a)
+    end
+
+    @testset "WeakKeyIdDict{Any,Any} and partial inference" begin
+        a = WeakKeyIdDict{Any,Any}()
+        a["1"] = a
+        a[a] = 2
+
+        sa = empty(a)
+        @test isempty(sa)
+        @test isa(sa, WeakKeyIdDict{Any,Any})
+
+        @test length(a) == 2
+        @test "1" in keys(a)
+        @test a in keys(a)
+        @test a["1"] === a
+        @test a[a] === 2
+
+        ca = copy(a)
+        @test length(ca) == length(a)
+        @test isequal(ca, a)
+        @test ca !== a # make sure they are different objects
+
+        ca = empty!(ca)
+        @test length(ca) == 0
+        @test length(a) == 2
+
+        d = Dict('a' => 1, 'b' => 1, 'c' => 3)
+        @test a != d
+        @test !isequal(a, d)
+
+        d = @inferred WeakKeyIdDict{Any,Any}(Pair("1", 1), Pair("2", 2), Pair("3", 3))
+        @test isa(d, WeakKeyIdDict{Any,Any})
+        @test d == WeakKeyIdDict{Any,Any}("1" => 1, "2" => 2, "3" => 3)
+        @test eltype(d) == Pair{Any,Any}
+
+        d = WeakKeyIdDict{Any,Int32}(:hi => 7)
+        let c = Ref{Any}(1.5)
+            f() = c[]
+            @test @inferred(get!(f, d, :hi)) === Int32(7)
+            @test_throws InexactError(:Int32, Int32, 1.5) get!(f, d, :hello)
+        end
+    end
+
     @testset "WeakKeyIdDict" begin
         A = [1]
         B = [2]
