@@ -111,7 +111,10 @@ function _cleanup_locked(h::WeakKeyIdDict)
     return h
 end
 
-Base.sizehint!(d::WeakKeyIdDict, newsz) = sizehint!(d.ht, newsz)
+function Base.sizehint!(d::WeakKeyIdDict, newsz)
+    d.ht = sizehint!(d.ht, newsz)
+    return d
+end
 Base.empty(d::WeakKeyIdDict, ::Type{K}, ::Type{V}) where {K,V} = WeakKeyIdDict{K,V}()
 
 Base.IteratorSize(::Type{<:WeakKeyIdDict}) = Base.SizeUnknown()
@@ -140,27 +143,27 @@ function Base.setindex!(wkh::WeakKeyIdDict{K}, v, key) where {K}
     end
     return wkh
 end
-function Base.get!(wkh::WeakKeyIdDict{K}, key, default) where {K}
+function Base.get!(wkh::WeakKeyIdDict{K,V}, key, default) where {K,V}
     v = lock(wkh) do
         k = WeakRefForWeakDict(key)
         if key !== nothing && haskey(wkh.ht, k)
             wkh.ht[k]
         else
-            wkh[key] = default
+            wkh[key] = convert(V, default)
         end
     end
-    return v
+    return v::V
 end
-function Base.get!(default::Base.Callable, wkh::WeakKeyIdDict{K}, key) where {K}
+function Base.get!(default::Base.Callable, wkh::WeakKeyIdDict{K,V}, key) where {K,V}
     v = lock(wkh) do
         k = WeakRefForWeakDict(key)
         if key !== nothing && haskey(wkh.ht, k)
             wkh.ht[k]
         else
-            wkh[key] = default()
+            wkh[key] = convert(V, default())
         end
     end
-    return v
+    return v::V
 end
 
 function Base.getkey(wkh::WeakKeyIdDict{K}, kk, default) where {K}
