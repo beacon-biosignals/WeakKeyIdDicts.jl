@@ -140,7 +140,7 @@ function Base.setindex!(wkh::WeakKeyIdDict{K}, v, key) where {K}
     end
     return wkh
 end
-function Base.get!(wkh::WeakKeyIdDict{K, V}, key, default) where {K, V}
+function Base.get!(wkh::WeakKeyIdDict{K,V}, key, default) where {K,V}
     v = lock(wkh) do
         k = WeakRefForWeakDict(key)
         if key !== nothing && haskey(wkh.ht, k)
@@ -151,7 +151,7 @@ function Base.get!(wkh::WeakKeyIdDict{K, V}, key, default) where {K, V}
     end
     return v::V
 end
-function Base.get!(default::Base.Callable, wkh::WeakKeyIdDict{K, V}, key) where {K, V}
+function Base.get!(default::Base.Callable, wkh::WeakKeyIdDict{K,V}, key) where {K,V}
     v = lock(wkh) do
         k = WeakRefForWeakDict(key)
         if key !== nothing && haskey(wkh.ht, k)
