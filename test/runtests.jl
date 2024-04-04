@@ -9,7 +9,7 @@ include("set_up_tests.jl")
 
     # NOTE: the first two testsets are copied from
     # https://github.com/JuliaLang/julia/blob/d7dc9a8cc8f2aebf04d5cecc8625be250169644b/test/dict.jl#L565-L626
-    # an modified for WeakKeyIdDict. WeakKeyIdDict doesn't support integeres as keys so some
+    # an modified for WeakKeyIdDict. WeakKeyIdDict doesn't support integers as keys so some
     # of the tests no longer make sense, and/or have to be modified
 
     # https://github.com/JuliaLang/julia/pull/10657
