@@ -1,7 +1,7 @@
 name = "WeakKeyIdDicts"
 uuid = "ecbed89c-9d59-4137-ae1f-d1084086d01c"
 authors = ["Beacon Biosignals, Inc"]
-version = "0.0.1"
+version = "0.1.0"
 
 [compat]
 Aqua = "0.8"
