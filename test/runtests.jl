@@ -92,9 +92,9 @@ include("set_up_tests.jl")
         @test WeakKeyIdDict(Pair(A, 2), Pair(B, 3), Pair(C, 4)) == wkd
 
         # inferred type parameters during construction
-        @test typeof(WeakKeyIdDict("1"=>1, :a=>2)) == WeakKeyIdDict{Any,Int}
-        @test typeof(WeakKeyIdDict("1"=>1, "1"=>:a)) == WeakKeyIdDict{String,Any}
-        @test typeof(WeakKeyIdDict(:a=>1, "1"=>:a)) == WeakKeyIdDict{Any,Any}
+        @test typeof(WeakKeyIdDict("1" => 1, :a => 2)) == WeakKeyIdDict{Any,Int}
+        @test typeof(WeakKeyIdDict("1" => 1, "1" => :a)) == WeakKeyIdDict{String,Any}
+        @test typeof(WeakKeyIdDict(:a => 1, "1" => :a)) == WeakKeyIdDict{Any,Any}
         @test typeof(WeakKeyIdDict(())) == WeakKeyIdDict{Any,Any}
 
         # constructing from iterators
