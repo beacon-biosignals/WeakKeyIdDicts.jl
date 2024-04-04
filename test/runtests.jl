@@ -1,5 +1,5 @@
 include("set_up_tests.jl")
-# below tests are copied from:
+# below tests were originally copied from:
 # https://github.com/Nemocas/AbstractAlgebra.jl/blob/f33f5de5e471938acbd06565245d839df4622916/test/WeakKeyIdDict-test.jl
 
 @testset "WeakKeyIdDicts.jl" begin
@@ -91,6 +91,16 @@ include("set_up_tests.jl")
         @test WeakKeyIdDict([(A, 2), (B, 3), (C, 4)]) == wkd
         @test WeakKeyIdDict(Pair(A, 2), Pair(B, 3), Pair(C, 4)) == wkd
 
+        # inferred type parameters during construction
+        @test typeof(WeakKeyIdDict("1"=>1, :a=>2)) == WeakKeyIdDict{Any,Int}
+        @test typeof(WeakKeyIdDict("1"=>1, "1"=>:a)) == WeakKeyIdDict{String,Any}
+        @test typeof(WeakKeyIdDict(:a=>1, "1"=>:a)) == WeakKeyIdDict{Any,Any}
+        @test typeof(WeakKeyIdDict(())) == WeakKeyIdDict{Any,Any}
+
+        # constructing from iterators
+        @test_throws BoundsError WeakKeyIdDict(((),))
+        @test_throws ArgumentError IdDict(nothing)
+
         # test many constructors with type parameters specified
         @test WeakKeyIdDict{Vector{Int},Int}(A => 2, B => 3, C => 4) == wkd
         @test isa(WeakKeyIdDict{Vector{Int},Int}(A => 2, B => 3, C => 4),
@@ -169,6 +179,28 @@ include("set_up_tests.jl")
         @test isempty(wkd)
         @test isa(wkd, WeakKeyIdDict)
         @test WeakKeyIdDict() == WeakKeyIdDict(())
+
+        # test inference for returned values
+        d = @inferred WeakKeyIdDict(Pair("1", 1), Pair("2", 2), Pair("3", 3))
+        @test 1 == @inferred d["1"]
+        @inferred setindex!(d, -1, "10")
+        @test d["10"] == -1
+        @test 1 == @inferred d["1"]
+        @test get(d, "-111", nothing) == nothing
+        @test 1 == @inferred get(d, 1, 1)
+        @test pop!(d, "-111", nothing) == nothing
+        @test 1 == @inferred pop!(d, "1")
+
+        # sizehint! & rehash!
+        d = WeakKeyIdDict()
+        @test sizehint!(d, 10^4) === d
+        @test length(d.ht.vals) >= 10^4
+        d = WeakKeyIdDict()
+        for jj in 1:30, i in 1:(10^4)
+            d[string(i)] = i
+        end
+        @test all(i -> d[string(i)] == i, 1:(10^4))
+        @test length(d.ht.vals) >= 10^4
 
         # bad iterable argument
         @test_throws ArgumentError WeakKeyIdDict([1, 2, 3])

@@ -111,7 +111,10 @@ function _cleanup_locked(h::WeakKeyIdDict)
     return h
 end
 
-Base.sizehint!(d::WeakKeyIdDict, newsz) = sizehint!(d.ht, newsz)
+function Base.sizehint!(d::WeakKeyIdDict, newsz)
+    d.ht = sizehint!(d.ht, newsz)
+    return d
+end
 Base.empty(d::WeakKeyIdDict, ::Type{K}, ::Type{V}) where {K,V} = WeakKeyIdDict{K,V}()
 
 Base.IteratorSize(::Type{<:WeakKeyIdDict}) = Base.SizeUnknown()
