@@ -40,7 +40,7 @@ jobs:
           version: "1"
           show-versioninfo: true
       - uses: julia-actions/cache@v1
-      - uses: julia-actions/add-julia-registry@v1
+      - uses: julia-actions/add-julia-registry@v2
         with:
           key: ${{ secrets.BEACONBUDDY_SSH_KEY }}
           registry: beacon-biosignals/BeaconRegistry
