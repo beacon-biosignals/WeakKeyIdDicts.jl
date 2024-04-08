@@ -47,13 +47,11 @@ See also [`WeakRef`](https://docs.julialang.org/en/v1/base/base/#Core.WeakRef),
 mutable struct WeakKeyIdDict{K,V} <: AbstractDict{K,V}
     ht::Dict{WeakRefForWeakDict,V}
     lock::ReentrantLock
-    finalizer::Function
     dirty::Bool
 
     # Constructors mirror Dict's
     function WeakKeyIdDict{K,V}() where {V} where {K}
-        t = new(Dict{WeakRefForWeakDict,V}(), ReentrantLock(), identity, 0)
-        t.finalizer = k -> t.dirty = true
+        t = new(Dict{WeakRefForWeakDict,V}(), ReentrantLock(), 0)
         return t
     end
 end
@@ -125,16 +123,30 @@ Base.unlock(wkh::WeakKeyIdDict) = unlock(wkh.lock)
 Base.lock(f, wkh::WeakKeyIdDict) = lock(f, wkh.lock)
 Base.trylock(f, wkh::WeakKeyIdDict) = trylock(f, wkh.lock)
 
+# anytime we lookup a key is an opportunity to check to see if that key has been GC'd and to
+# then mark the state of the dict as dirty; upon calls to `setindex!` and `length` any
+# `nothing` valued keys are removed from the dictionary.
+function _getkey_locked(wkh::WeakKeyIdDict, key)
+    k = getkey(wkh.ht, WeakRefForWeakDict(key), nothing)
+    if !isnothing(key) && !isnothing(k)
+        if isnothing(k.w.value)
+            wkh.dirty = true
+            return nothing
+        end
+        return k
+    end
+
+    return nothing
+end
+
 function Base.setindex!(wkh::WeakKeyIdDict{K}, v, key) where {K}
     !isa(key, K) && throw(ArgumentError("$key is not a valid key for type $K"))
-    # 'nothing' is not valid both because 'finalizer' will reject it,
-    # and because we therefore use it as a sentinel value
+    # 'nothing' is not valid because WeakRef's can be set to `nothing` after being finalized
     key === nothing && throw(ArgumentError("`nothing` is not a valid WeakKeyIdDict key"))
     lock(wkh) do
         _cleanup_locked(wkh)
-        k = getkey(wkh.ht, WeakRefForWeakDict(key), nothing)
+        k = _getkey_locked(wkh, key)
         if k === nothing
-            finalizer(wkh.finalizer, key)
             k = WeakRefForWeakDict(key)
         else
             k.w.value = key
@@ -145,22 +157,22 @@ function Base.setindex!(wkh::WeakKeyIdDict{K}, v, key) where {K}
 end
 function Base.get!(wkh::WeakKeyIdDict{K,V}, key, default) where {K,V}
     v = lock(wkh) do
-        k = WeakRefForWeakDict(key)
-        if key !== nothing && haskey(wkh.ht, k)
-            wkh.ht[k]
+        k = _getkey_locked(wkh, key)
+        if key !== nothing && !isnothing(k)
+            return wkh.ht[k]
         else
-            wkh[key] = convert(V, default)
+            return wkh[key] = convert(V, default)
         end
     end
     return v::V
 end
 function Base.get!(default::Base.Callable, wkh::WeakKeyIdDict{K,V}, key) where {K,V}
     v = lock(wkh) do
-        k = WeakRefForWeakDict(key)
-        if key !== nothing && haskey(wkh.ht, k)
-            wkh.ht[k]
+        k = getkey(wkh.ht, WeakRefForWeakDict(key), nothing)
+        if key !== nothing && !isnothing(k) && !isnothing(k.w.value)
+            return wkh.ht[k]
         else
-            wkh[key] = convert(V, default())
+            return wkh[key] = convert(V, default())
         end
     end
     return v::V
@@ -168,7 +180,7 @@ end
 
 function Base.getkey(wkh::WeakKeyIdDict{K}, kk, default) where {K}
     k = lock(wkh) do
-        local k = getkey(wkh.ht, WeakRefForWeakDict(kk), nothing)
+        local k = _getkey_locked(wkh, kk)
         k === nothing && return nothing
         return k.w.value
     end
@@ -180,31 +192,39 @@ Base.map!(f, iter::Base.ValueIterator{<:WeakKeyIdDict}) = Base.map!(f, values(it
 function Base.get(wkh::WeakKeyIdDict{K}, key, default) where {K}
     key === nothing && throw(KeyError(nothing))
     lock(wkh) do
-        return get(wkh.ht, WeakRefForWeakDict(key), default)
+        k = _getkey_locked(wkh, key)
+        k === nothing && return default
+        return wkh.ht[k]
     end
 end
 function Base.get(default::Base.Callable, wkh::WeakKeyIdDict{K}, key) where {K}
     key === nothing && throw(KeyError(nothing))
     lock(wkh) do
-        return get(default, wkh.ht, WeakRefForWeakDict(key))
+        k = _getkey_locked(wkh, key)
+        k === nothing && return default()
+        return wkh.ht[k]
     end
 end
 function Base.pop!(wkh::WeakKeyIdDict{K}, key) where {K}
     key === nothing && throw(KeyError(nothing))
     lock(wkh) do
+        _getkey_locked(wkh, key)
         return pop!(wkh.ht, WeakRefForWeakDict(key))
     end
 end
 function Base.pop!(wkh::WeakKeyIdDict{K}, key, default) where {K}
     key === nothing && return default
     lock(wkh) do
-        return pop!(wkh.ht, WeakRefForWeakDict(key), default)
+        k = _getkey_locked(wkh, key)
+        k === nothing && return default
+        return pop!(wkh.ht, k, default)
     end
 end
 function Base.delete!(wkh::WeakKeyIdDict, key)
     key === nothing && return wkh
     lock(wkh) do
-        delete!(wkh.ht, WeakRefForWeakDict(key))
+        k = _getkey_locked(wkh, key)
+        delete!(wkh.ht, k)
         return
     end
     return wkh
@@ -219,13 +239,16 @@ end
 function Base.haskey(wkh::WeakKeyIdDict{K}, key) where {K}
     key === nothing && return false
     return lock(wkh) do
-        return haskey(wkh.ht, WeakRefForWeakDict(key))
+        k = _getkey_locked(wkh, key)
+        return k !== nothing
     end
 end
 function Base.getindex(wkh::WeakKeyIdDict{K}, key) where {K}
     key === nothing && throw(KeyError(nothing))
     return lock(wkh) do
-        return getindex(wkh.ht, WeakRefForWeakDict(key))
+        k = _getkey_locked(wkh, key)
+        k === nothing && throw(KeyError(key))
+        return getindex(wkh.ht, k)
     end
 end
 Base.isempty(wkh::WeakKeyIdDict) = length(wkh) == 0
@@ -244,7 +267,10 @@ function Base.iterate(t::WeakKeyIdDict{K,V}, state...) where {K,V}
             wkv, state = y
             k = wkv[1].w.value
             GC.safepoint() # ensure `k` is now gc-rooted
-            k === nothing && continue # indicates `k` is scheduled for deletion
+            if k === nothing
+                t.dirty = true
+                continue # indicates `k` is scheduled for deletion
+            end
             kv = Pair{K,V}(k::K, wkv[2])
             return (kv, state)
         end

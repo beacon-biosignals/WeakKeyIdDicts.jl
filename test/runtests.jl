@@ -9,8 +9,7 @@ include("set_up_tests.jl")
 
     # NOTE: the first two testsets are copied from
     # https://github.com/JuliaLang/julia/blob/d7dc9a8cc8f2aebf04d5cecc8625be250169644b/test/dict.jl#L565-L626
-    # an modified for WeakKeyIdDict. WeakKeyIdDict doesn't support integers as keys so some
-    # of the tests no longer make sense, and/or have to be modified
+    # an modified for WeakKeyIdDict.
 
     # https://github.com/JuliaLang/julia/pull/10657
     mutable struct T10647{T}
@@ -18,9 +17,9 @@ include("set_up_tests.jl")
     end
     @testset "issue julia#10647" begin
         a = WeakKeyIdDict()
-        a["1"] = a
+        a[1] = a
         a[a] = 2
-        a["3"] = T10647(a)
+        a[3] = T10647(a)
         @test isequal(a, a)
         show(IOBuffer(), a)
         Base.show(Base.IOContext(IOBuffer(), :limit => true), a)
@@ -30,7 +29,7 @@ include("set_up_tests.jl")
 
     @testset "WeakKeyIdDict{Any,Any} and partial inference" begin
         a = WeakKeyIdDict{Any,Any}()
-        a["1"] = a
+        a[1] = a
         a[a] = 2
 
         sa = empty(a)
@@ -38,9 +37,9 @@ include("set_up_tests.jl")
         @test isa(sa, WeakKeyIdDict{Any,Any})
 
         @test length(a) == 2
-        @test "1" in keys(a)
+        @test 1 in keys(a)
         @test a in keys(a)
-        @test a["1"] === a
+        @test a[1] === a
         @test a[a] === 2
 
         ca = copy(a)
@@ -56,9 +55,9 @@ include("set_up_tests.jl")
         @test a != d
         @test !isequal(a, d)
 
-        d = @inferred WeakKeyIdDict{Any,Any}(Pair("1", 1), Pair("2", 2), Pair("3", 3))
+        d = @inferred WeakKeyIdDict{Any,Any}(Pair(1, 1), Pair(2, 2), Pair(3, 3))
         @test isa(d, WeakKeyIdDict{Any,Any})
-        @test d == WeakKeyIdDict{Any,Any}("1" => 1, "2" => 2, "3" => 3)
+        @test d == WeakKeyIdDict{Any,Any}(1 => 1, 2 => 2, 3 => 3)
         @test eltype(d) == Pair{Any,Any}
 
         d = WeakKeyIdDict{Any,Int32}(:hi => 7)
@@ -92,9 +91,9 @@ include("set_up_tests.jl")
         @test WeakKeyIdDict(Pair(A, 2), Pair(B, 3), Pair(C, 4)) == wkd
 
         # inferred type parameters during construction
-        @test typeof(WeakKeyIdDict("1" => 1, :a => 2)) == WeakKeyIdDict{Any,Int}
-        @test typeof(WeakKeyIdDict("1" => 1, "1" => :a)) == WeakKeyIdDict{String,Any}
-        @test typeof(WeakKeyIdDict(:a => 1, "1" => :a)) == WeakKeyIdDict{Any,Any}
+        @test typeof(WeakKeyIdDict(1 => 1, :a => 2)) == WeakKeyIdDict{Any,Int}
+        @test typeof(WeakKeyIdDict(1 => 1, 1 => :a)) == WeakKeyIdDict{Int,Any}
+        @test typeof(WeakKeyIdDict(:a => 1, 1 => :a)) == WeakKeyIdDict{Any,Any}
         @test typeof(WeakKeyIdDict(())) == WeakKeyIdDict{Any,Any}
 
         # constructing from iterators
@@ -181,15 +180,15 @@ include("set_up_tests.jl")
         @test WeakKeyIdDict() == WeakKeyIdDict(())
 
         # test inference for returned values
-        d = @inferred WeakKeyIdDict(Pair("1", 1), Pair("2", 2), Pair("3", 3))
-        @test 1 == @inferred d["1"]
-        @inferred setindex!(d, -1, "10")
-        @test d["10"] == -1
-        @test 1 == @inferred d["1"]
-        @test get(d, "-111", nothing) == nothing
+        d = @inferred WeakKeyIdDict(Pair(1, 1), Pair(2, 2), Pair(3, 3))
+        @test 1 == @inferred d[1]
+        @inferred setindex!(d, -1, 10)
+        @test d[10] == -1
+        @test 1 == @inferred d[1]
+        @test get(d, -111, nothing) == nothing
         @test 1 == @inferred get(d, 1, 1)
-        @test pop!(d, "-111", nothing) == nothing
-        @test 1 == @inferred pop!(d, "1")
+        @test pop!(d, -111, nothing) == nothing
+        @test 1 == @inferred pop!(d, 1)
 
         # sizehint! & rehash!
         d = WeakKeyIdDict()
@@ -205,8 +204,9 @@ include("set_up_tests.jl")
         # bad iterable argument
         @test_throws ArgumentError WeakKeyIdDict([1, 2, 3])
 
-        # integers can't be arguments
-        @test_throws ErrorException WeakKeyIdDict([1 => 2])
+        # immutables can be arguments
+        WeakKeyIdDict([1 => 2])
+        WeakKeyIdDict([MyStruct([1,2,3]) => 2])
 
         # WeakKeyIdDict does not convert keys
         @test_throws ArgumentError WeakKeyIdDict{Int,Any}(5.0 => 1)
@@ -265,9 +265,9 @@ end
 # This test somehow doesn't work if it is inside a @testset as then the
 # WeakRef is not collected for some reason I don't quite understand at
 # this point... :-(
-_tmp_key = [1]
+_tmp_key = MyStruct([1,2])
 wkd = WeakKeyIdDict(_tmp_key => 1)
-let tmp = [42]
+let tmp = MyStruct([42])
     @test length(wkd) == 1
     wkd[tmp] = 2
     @test length(wkd) == 2
@@ -276,6 +276,7 @@ end
 # previously reachable via tmp
 GC.gc(true)
 
+@test wkd[_tmp_key] == 1
 @test length(wkd) == 1
 @test length(keys(wkd)) == 1
 @test WeakKeyIdDict(_tmp_key => 1) == wkd
