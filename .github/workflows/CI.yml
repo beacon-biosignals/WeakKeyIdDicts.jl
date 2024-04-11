@@ -76,11 +76,12 @@ jobs:
         with:
           version: ${{ steps.version_resolver.outputs.version }}
           arch: ${{ matrix.arch }}
-      - uses: julia-actions/cache@v1
-      - uses: julia-actions/add-julia-registry@v1
+      - uses: actions/cache@v2
         with:
-          key: ${{ secrets.BEACONBUDDY_SSH_KEY }}
-          registry: beacon-biosignals/BeaconRegistry
+            path: ~/.julia/artifacts
+            key: ${{ runner.os }}-test-artifacts-${{ hashFiles('**/Project.toml') }}
+            restore-keys: ${{ runner.os }}-test-artifacts
+      - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
         with:
           annotate: true
@@ -92,10 +93,3 @@ jobs:
           files: lcov.info
           flags: WeakKeyIdDicts
           token: ${{ secrets.CODECOV_TOKEN }}
-      # - name: Percy Upload
-      #   if: ${{ matrix.version == '1' }}
-      #   uses: percy/exec-action@v0.3.1
-      #   with:
-      #     custom-command: "npx @percy/cli upload ./WeakKeyIdDicts.jl/test/test_images"
-      #   env:
-      #     PERCY_TOKEN: ${{ secrets.PERCY_TOKEN_WEAKKEYIDDICTS }}
