@@ -81,10 +81,6 @@ jobs:
             path: ~/.julia/artifacts
             key: ${{ runner.os }}-test-artifacts-${{ hashFiles('**/Project.toml') }}
             restore-keys: ${{ runner.os }}-test-artifacts
-      - uses: julia-actions/add-julia-registry@v2
-        with:
-          key: ${{ secrets.BEACONBUDDY_SSH_KEY }}
-          registry: beacon-biosignals/BeaconRegistry
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
         with:
