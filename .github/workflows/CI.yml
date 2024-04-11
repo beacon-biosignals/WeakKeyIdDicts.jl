@@ -92,10 +92,3 @@ jobs:
           files: lcov.info
           flags: WeakKeyIdDicts
           token: ${{ secrets.CODECOV_TOKEN }}
-      # - name: Percy Upload
-      #   if: ${{ matrix.version == '1' }}
-      #   uses: percy/exec-action@v0.3.1
-      #   with:
-      #     custom-command: "npx @percy/cli upload ./WeakKeyIdDicts.jl/test/test_images"
-      #   env:
-      #     PERCY_TOKEN: ${{ secrets.PERCY_TOKEN_WEAKKEYIDDICTS }}
