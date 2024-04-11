@@ -21,9 +21,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 The source implementation was originally copied from that found in `AbstractAlgebra.jl`
-located here: https://github.com/Nemocas/AbstractAlgebra.jl, and is available under the following MIT license:
+located here: https://github.com/Nemocas/AbstractAlgebra.jl, and is available under the following 2-clause BSD license:
 
-> Copyright (c) 2014-2016: William Hart, Tommy Hofmann, Claus Fieker, Fredrik Johansson.
+> Copyright (c) 2014-2016: William Hart, Tommy Hofmann, Clause Fieker, Fredrik Johansson.
 
 > Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
 
