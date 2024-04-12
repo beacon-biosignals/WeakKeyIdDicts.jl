@@ -20,4 +20,5 @@ GC.gc(true)
 
 @show length(wkd) # 1
 ```
+
 Avoid assuming a key exists in a `WeakKeyDict`, especially when allocation occurs. Keys can be removed any time garbage collection occurs. Favor the methods `get!` and `get` over `getindex`.
