@@ -28,4 +28,4 @@ Avoid assuming a key exists in a `WeakKeyIdDict`, especially when allocation occ
 
 Much of the credit for the implementation of WeakKeyIdDict goes to Maura Werder (@mauro3) for the initial [work in the julia repository](https://github.com/JuliaLang/julia/pull/28182), and [DataStructures](https://github.com/JuliaCollections/DataStructures.jl/pull/402). Max Horn (@fingolfin) then updated and debugged a version merged to [AlbstractAlgebra](https://github.com/Nemocas/AbstractAlgebra.jl/pull/1419).
 
-The version here adds a few additional tests for edge-cases, fixing related bugs along the way, that arose from work in base [julia](https://github.com/JuliaLang/julia).
+The version here adds a few additional tests for edge-cases, fixing related bugs along the way, using code from some of the `IdDict` tests from Base [julia](https://github.com/JuliaLang/julia).
