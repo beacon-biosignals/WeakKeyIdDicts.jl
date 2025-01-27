@@ -98,7 +98,9 @@ include("set_up_tests.jl")
         @test typeof(WeakKeyIdDict(())) == WeakKeyIdDict{Any,Any}
 
         # constructing from iterators
-        @test_throws BoundsError WeakKeyIdDict(((),))
+        # pre-1.11, this threw a BoundsError: attempt to access Tuple{} at index [1]
+        # on 1.11, this throws an ArgumentError: AbstractDict(kv): kv needs to be an iterator of 2-tuples or pairs
+        @test_throws Union{BoundsError,ArgumentError} WeakKeyIdDict(((),))
         @test_throws ArgumentError IdDict(nothing)
 
         # test many constructors with type parameters specified
